@@ -9,11 +9,27 @@ import {
 } from "@/components/ui/card"
 import { Plus } from "lucide-react"
 import VendorList from "./VendorList"
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import AddVendorDialog from "./AddVendorDialog"
+import { toast } from "sonner"
+import type { Vendor } from "@/types/s3"
 
 export default function VendorManagement() {
   const [showAddDialog, setShowAddDialog] = useState(false)
+  const [vendors, setVendors] = useState<Vendor[]>([])
+  
+  const loadVendors = useCallback(() => {
+    try {
+      const savedVendors = localStorage.getItem('vendors')
+      if (savedVendors) {
+        const parsedVendors = JSON.parse(savedVendors)
+        setVendors(parsedVendors)
+      }
+    } catch (error) {
+      console.error('Load vendors error:', error)
+      toast.error('加载厂商列表失败')
+    }
+  }, [])
 
   return (
     <Card>
@@ -30,12 +46,13 @@ export default function VendorManagement() {
         </div>
       </CardHeader>
       <CardContent>
-        <VendorList />
+        <VendorList vendors={vendors} loadVendors={loadVendors} />
       </CardContent>
       
       <AddVendorDialog 
         open={showAddDialog} 
         onOpenChange={setShowAddDialog}
+        onSuccess={loadVendors}
       />
     </Card>
   )

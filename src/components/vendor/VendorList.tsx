@@ -1,36 +1,41 @@
 "use client"
 import { Button } from "@/components/ui/button"
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table"
 import type { Vendor } from "@/types/s3"
 import { Settings, Trash2 } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
-import S3ConfigDialog from "./S3ConfigDialog"
-import AddVendorDialog from "./AddVendorDialog"
 import { toast } from "sonner"
+import S3ConfigDialog from "./S3ConfigDialog"
 
-export default function VendorList() {
+interface VendorListProps {
+  vendors: Vendor[];
+  loadVendors: () => void;
+}
+
+export default function VendorList({ vendors, loadVendors }: VendorListProps) {
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null)
   const [showConfigDialog, setShowConfigDialog] = useState(false)
-  const [showAddDialog, setShowAddDialog] = useState(false)
-  const [vendors, setVendors] = useState<Vendor[]>([])
 
-  // 加载厂商列表
-  const loadVendors = useCallback(() => {
-    const savedVendors = localStorage.getItem('vendors')
-    if (savedVendors) {
-      setVendors(JSON.parse(savedVendors))
-    }
-  }, [])
-
+  // 移除本地的 vendors 状态，使用父组件传递的 vendors
   useEffect(() => {
     loadVendors()
+  }, [loadVendors])
+
+  useEffect(() => {
+    const handleVendorUpdate = () => {
+      console.log('Vendors updated')
+      loadVendors()
+    }
+
+    window.addEventListener('vendorsUpdated', handleVendorUpdate)
+    return () => window.removeEventListener('vendorsUpdated', handleVendorUpdate)
   }, [loadVendors])
 
   const handleDelete = useCallback((vendor: Vendor) => {
@@ -95,12 +100,6 @@ export default function VendorList() {
         vendor={selectedVendor}
         open={showConfigDialog}
         onOpenChange={setShowConfigDialog}
-        onSuccess={loadVendors}
-      />
-
-      <AddVendorDialog
-        open={showAddDialog}
-        onOpenChange={setShowAddDialog}
         onSuccess={loadVendors}
       />
     </div>

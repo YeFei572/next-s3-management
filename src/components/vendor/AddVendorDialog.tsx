@@ -33,7 +33,6 @@ export default function AddVendorDialog({
         toast.error('请填写完整信息')
         return
       }
-
       const newVendor = {
         id: Date.now().toString(),
         name,
@@ -42,8 +41,9 @@ export default function AddVendorDialog({
         accessKey: '',
         secretKey: '',
         region: '',
+        createdAt: new Date()  // 添加创建时间
       }
-  
+      
       // 获取现有厂商列表
       const savedVendors = localStorage.getItem('vendors')
       const vendors = savedVendors ? JSON.parse(savedVendors) : []
@@ -53,18 +53,19 @@ export default function AddVendorDialog({
       
       // 保存到 localStorage
       localStorage.setItem('vendors', JSON.stringify(updatedVendors))
-  
-      toast.success('厂商添加成功')
-      onSuccess?.()  // 调用成功回调以刷新列表
-      onOpenChange(false)  // 关闭弹窗
       
-      // 重置表单
+      // 重置状态和关闭弹窗
       setName("")
       setEndpoint("")
       setBucket("")
+      onOpenChange(false)
+      if (onSuccess) {
+        onSuccess()
+      }
+      toast.success('厂商添加成功')
     } catch (error) {
-      toast.error('添加厂商失败')
       console.error('Add vendor error:', error)
+      toast.error('添加厂商失败')
     }
   }
 
