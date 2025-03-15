@@ -93,6 +93,34 @@ export function FileList() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
+  const handleDownload = async (key: string) => {
+    try {
+      const vendorsJson = localStorage.getItem('vendors')
+      const response = await fetch(`/api/s3/download?vendorId=${selectedVendor}&key=${encodeURIComponent(key)}`, {
+        headers: {
+          'x-vendors': vendorsJson || '[]'
+        }
+      })
+      
+      if (!response.ok) throw new Error('下载失败')
+      
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = key.split('/').pop() || key // 使用文件名作为下载名称
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+      
+      toast.success('文件下载成功')
+    } catch (error) {
+      console.error('Download error:', error)
+      toast.error(`下载失败: ${error}`)
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="w-[200px]">
@@ -144,7 +172,12 @@ export function FileList() {
                 <TableCell>{formatFileSize(file.size)}</TableCell>
                 <TableCell>{file.lastModified.toLocaleString()}</TableCell>
                 <TableCell className="space-x-2">
-                  <Button variant="outline" size="icon" disabled={loading}>
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    disabled={loading}
+                    onClick={() => handleDownload(file.key)}
+                  >
                     <Download className="h-4 w-4" />
                   </Button>
                   <Button variant="outline" size="icon" disabled={loading}>
