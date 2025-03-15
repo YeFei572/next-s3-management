@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Download, Trash2 } from "lucide-react"
-import type { FileItem } from "@/types/s3"
+import type { FileItem, Vendor } from "@/types/s3"
 import {
   Select,
   SelectContent,
@@ -18,19 +18,74 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useState } from "react"
+import { useEffect } from "react"
+import { toast } from "sonner"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export function FileList() {
+  const [files, setFiles] = useState<FileItem[]>([])
+  const [loading, setLoading] = useState(false)
   const [selectedVendor, setSelectedVendor] = useState<string>("")
-  
-  // 这里先用模拟数据，后续需要替换为真实的API调用
-  const files: FileItem[] = [
-    {
-      key: "example.txt",
-      size: 1024,
-      lastModified: new Date(),
-      type: "text/plain"
+  const [vendors, setVendors] = useState<Vendor[]>([])
+
+  useEffect(() => {
+    // 加载厂商列表
+    const savedVendors = localStorage.getItem('vendors')
+    if (savedVendors) {
+      setVendors(JSON.parse(savedVendors))
     }
-  ]
+  }, [])
+
+  useEffect(() => {
+    if (selectedVendor) {
+      loadFiles()
+    }
+  }, [selectedVendor])
+
+  const loadFiles = async () => {
+    setLoading(true)
+    try {
+      // 从 localStorage 获取厂商配置
+      const vendorsJson = localStorage.getItem('vendors')
+      
+      const response = await fetch(`/api/s3?vendorId=${selectedVendor}`, {
+        headers: {
+          'x-vendors': vendorsJson || '[]'
+        }
+      })
+      
+      if (!response.ok) throw new Error("Failed to load files")
+      const { data, message } = await response.json()
+      setFiles(data)
+      toast(`成功：${message}`)
+    } catch (error) {
+      toast(`加载文件列表失败 ${error}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // const handleDelete = async (key: string) => {
+  //   try {
+  //     const response = await fetch(
+  //       `/api/s3?vendorId=${selectedVendor}&key=${encodeURIComponent(key)}`,
+  //       { method: "DELETE" }
+  //     )
+  //     if (!response.ok) throw new Error("Failed to delete file")
+  //     const { message } = await response.json()
+  //     await loadFiles()
+  //     toast({
+  //       title: "成功",
+  //       description: message,
+  //     })
+  //   } catch (error) {
+  //     toast({
+  //       variant: "destructive",
+  //       title: "错误",
+  //       description: `删除文件失败 ${error}`,
+  //     })
+  //   }
+  // }
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes'
@@ -44,12 +99,15 @@ export function FileList() {
     <div className="space-y-4">
       <div className="w-[200px]">
         <Select value={selectedVendor} onValueChange={setSelectedVendor}>
-          <SelectTrigger>
+          <SelectTrigger disabled={loading}>
             <SelectValue placeholder="选择厂商" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="vendor1">阿里云 OSS</SelectItem>
-            {/* 这里需要从API获取真实的厂商列表 */}
+            {vendors.map(vendor => (
+              <SelectItem key={vendor.id} value={vendor.id}>
+                {vendor.name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -65,22 +123,39 @@ export function FileList() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {files.map((file) => (
-            <TableRow key={file.key}>
-              <TableCell>{file.key}</TableCell>
-              <TableCell>{file.type}</TableCell>
-              <TableCell>{formatFileSize(file.size)}</TableCell>
-              <TableCell>{file.lastModified.toLocaleString()}</TableCell>
-              <TableCell className="space-x-2">
-                <Button variant="outline" size="icon">
-                  <Download className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="icon">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
+          {loading ? (
+            Array.from({ length: 3 }).map((_, index) => (
+              <TableRow key={index}>
+                <TableCell><Skeleton className="h-4 w-[250px]" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-[100px]" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-[80px]" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-[150px]" /></TableCell>
+                <TableCell>
+                  <div className="flex space-x-2">
+                    <Skeleton className="h-8 w-8" />
+                    <Skeleton className="h-8 w-8" />
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            files.map((file) => (
+              <TableRow key={file.key}>
+                <TableCell>{file.key}</TableCell>
+                <TableCell>{file.type}</TableCell>
+                <TableCell>{formatFileSize(file.size)}</TableCell>
+                <TableCell>{file.lastModified.toLocaleString()}</TableCell>
+                <TableCell className="space-x-2">
+                  <Button variant="outline" size="icon" disabled={loading}>
+                    <Download className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="icon" disabled={loading}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))
+          )}
         </TableBody>
       </Table>
     </div>

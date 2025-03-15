@@ -10,23 +10,36 @@ import {
 import { Button } from "@/components/ui/button"
 import { Settings, Trash2 } from "lucide-react"
 import type { Vendor } from "@/types/s3"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import S3ConfigDialog from "./S3ConfigDialog"
+import { toast } from "sonner"
+import Cookies from 'js-cookie'
 
 export default function VendorList() {
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null)
   const [showConfigDialog, setShowConfigDialog] = useState(false)
+  const [vendors, setVendors] = useState<Vendor[]>([])
 
-  // 这里先用模拟数据，后续需要替换为真实的API调用
-  const vendors: Vendor[] = [
-    {
-      id: "1",
-      name: "阿里云 OSS",
-      description: "阿里云对象存储服务",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  ]
+  // 加载厂商列表
+  const loadVendors = () => {
+    const savedVendors = localStorage.getItem('vendors')
+    if (savedVendors) {
+      setVendors(JSON.parse(savedVendors))
+    }
+  }
+
+  useEffect(() => {
+    loadVendors()
+  }, [])
+
+  // 删除厂商
+  const handleDelete = (vendor: Vendor) => {
+    const updatedVendors = vendors.filter(v => v.id !== vendor.id)
+    localStorage.setItem('vendors', JSON.stringify(updatedVendors))
+    Cookies.set('vendors', JSON.stringify(updatedVendors))
+    setVendors(updatedVendors)
+    toast.success('厂商删除成功')
+  }
 
   return (
     <div>
@@ -34,8 +47,8 @@ export default function VendorList() {
         <TableHeader>
           <TableRow>
             <TableHead>厂商名称</TableHead>
-            <TableHead>描述</TableHead>
-            <TableHead>创建时间</TableHead>
+            <TableHead>Endpoint</TableHead>
+            <TableHead>Bucket</TableHead>
             <TableHead>操作</TableHead>
           </TableRow>
         </TableHeader>
@@ -43,8 +56,8 @@ export default function VendorList() {
           {vendors.map((vendor) => (
             <TableRow key={vendor.id}>
               <TableCell>{vendor.name}</TableCell>
-              <TableCell>{vendor.description}</TableCell>
-              <TableCell>{vendor.createdAt.toLocaleDateString()}</TableCell>
+              <TableCell>{vendor.endpoint}</TableCell>
+              <TableCell>{vendor.bucket}</TableCell>
               <TableCell className="space-x-2">
                 <Button
                   variant="outline"
@@ -56,7 +69,11 @@ export default function VendorList() {
                 >
                   <Settings className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="icon">
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={() => handleDelete(vendor)}
+                >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </TableCell>
@@ -69,6 +86,7 @@ export default function VendorList() {
         vendor={selectedVendor}
         open={showConfigDialog}
         onOpenChange={setShowConfigDialog}
+        onSuccess={loadVendors}
       />
     </div>
   )

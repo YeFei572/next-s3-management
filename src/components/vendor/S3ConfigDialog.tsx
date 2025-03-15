@@ -10,18 +10,22 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import type { Vendor } from "@/types/s3"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { toast } from "sonner"
+import Cookies from 'js-cookie'
 
 interface S3ConfigDialogProps {
   vendor: Vendor | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSuccess?: () => void
 }
 
 export default function S3ConfigDialog({
   vendor,
   open,
   onOpenChange,
+  onSuccess,
 }: S3ConfigDialogProps) {
   const [config, setConfig] = useState({
     endpoint: "",
@@ -31,9 +35,50 @@ export default function S3ConfigDialog({
     bucket: "",
   })
 
+  // 添加 useEffect 来处理配置回显
+  useEffect(() => {
+    if (vendor && open) {
+      setConfig({
+        endpoint: vendor.endpoint || "",
+        accessKey: vendor.accessKey || "",
+        secretKey: vendor.secretKey || "",
+        region: vendor.region || "",
+        bucket: vendor.bucket || "",
+      })
+    }
+  }, [vendor, open])
+
   const handleSubmit = async () => {
-    // TODO: 实现保存S3配置的API调用
-    onOpenChange(false)
+    try {
+      const vendorsJson = localStorage.getItem('vendors')
+      const vendors = vendorsJson ? JSON.parse(vendorsJson) : []
+      
+      const updatedVendor = {
+        ...vendor,
+        ...config,
+      }
+      
+      let updatedVendors
+      const existingVendorIndex = vendors.findIndex((v: Vendor) => v.id === vendor?.id)
+      
+      if (existingVendorIndex >= 0) {
+        updatedVendors = vendors.map((v: Vendor) => 
+          v.id === vendor?.id ? updatedVendor : v
+        )
+      } else {
+        updatedVendors = [...vendors, updatedVendor]
+      }
+
+      localStorage.setItem('vendors', JSON.stringify(updatedVendors))
+      Cookies.set('vendors', JSON.stringify(updatedVendors))
+
+      toast.success('配置保存成功')
+      onSuccess?.()
+      onOpenChange(false)
+    } catch (error) {
+      toast.error('配置保存失败')
+      console.error('Save config error:', error)
+    }
   }
 
   if (!vendor) return null

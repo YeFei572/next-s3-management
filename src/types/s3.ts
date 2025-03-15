@@ -1,6 +1,11 @@
 export interface Vendor {
   id: string
   name: string
+  endpoint: string
+  accessKey: string
+  secretKey: string
+  region: string
+  bucket: string
   description?: string
   createdAt: Date
   updatedAt: Date
