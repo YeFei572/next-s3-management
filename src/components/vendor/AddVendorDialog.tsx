@@ -3,15 +3,14 @@ import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useState } from "react"
 import { toast } from "sonner"
-import Cookies from 'js-cookie'
 
 interface AddVendorDialogProps {
   open: boolean
@@ -44,17 +43,20 @@ export default function AddVendorDialog({
         secretKey: '',
         region: '',
       }
-
+  
+      // 获取现有厂商列表
       const savedVendors = localStorage.getItem('vendors')
       const vendors = savedVendors ? JSON.parse(savedVendors) : []
+      
+      // 添加新厂商
       const updatedVendors = [...vendors, newVendor]
-
+      
+      // 保存到 localStorage
       localStorage.setItem('vendors', JSON.stringify(updatedVendors))
-      Cookies.set('vendors', JSON.stringify(updatedVendors))
-
+  
       toast.success('厂商添加成功')
-      onSuccess?.()
-      onOpenChange(false)
+      onSuccess?.()  // 调用成功回调以刷新列表
+      onOpenChange(false)  // 关闭弹窗
       
       // 重置表单
       setName("")

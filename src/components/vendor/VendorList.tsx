@@ -1,48 +1,57 @@
 "use client"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Settings, Trash2 } from "lucide-react"
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table"
 import type { Vendor } from "@/types/s3"
-import { useState, useEffect } from "react"
+import { Settings, Trash2 } from "lucide-react"
+import { useCallback, useEffect, useState } from "react"
 import S3ConfigDialog from "./S3ConfigDialog"
+import AddVendorDialog from "./AddVendorDialog"
 import { toast } from "sonner"
-import Cookies from 'js-cookie'
 
 export default function VendorList() {
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null)
   const [showConfigDialog, setShowConfigDialog] = useState(false)
+  const [showAddDialog, setShowAddDialog] = useState(false)
   const [vendors, setVendors] = useState<Vendor[]>([])
 
   // 加载厂商列表
-  const loadVendors = () => {
+  const loadVendors = useCallback(() => {
     const savedVendors = localStorage.getItem('vendors')
     if (savedVendors) {
       setVendors(JSON.parse(savedVendors))
     }
-  }
+  }, [])
 
   useEffect(() => {
     loadVendors()
-  }, [])
+  }, [loadVendors])
 
-  // 删除厂商
-  const handleDelete = (vendor: Vendor) => {
-    const updatedVendors = vendors.filter(v => v.id !== vendor.id)
-    localStorage.setItem('vendors', JSON.stringify(updatedVendors))
-    Cookies.set('vendors', JSON.stringify(updatedVendors))
-    setVendors(updatedVendors)
-    toast.success('厂商删除成功')
-  }
+  const handleDelete = useCallback((vendor: Vendor) => {
+    try {
+      const savedVendors = localStorage.getItem('vendors')
+      if (!savedVendors) return
+
+      const vendors = JSON.parse(savedVendors)
+      const updatedVendors = vendors.filter((v: Vendor) => v.id !== vendor.id)
+      
+      localStorage.setItem('vendors', JSON.stringify(updatedVendors))
+      loadVendors() // 刷新列表
+      toast.success('厂商删除成功')
+    } catch (error) {
+      toast.error('删除厂商失败')
+      console.error('Delete vendor error:', error)
+    }
+  }, [loadVendors])
 
   return (
-    <div>
+    <div className="space-y-4">
       <Table>
         <TableHeader>
           <TableRow>
@@ -86,6 +95,12 @@ export default function VendorList() {
         vendor={selectedVendor}
         open={showConfigDialog}
         onOpenChange={setShowConfigDialog}
+        onSuccess={loadVendors}
+      />
+
+      <AddVendorDialog
+        open={showAddDialog}
+        onOpenChange={setShowAddDialog}
         onSuccess={loadVendors}
       />
     </div>

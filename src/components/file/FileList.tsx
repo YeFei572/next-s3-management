@@ -17,8 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { useState } from "react"
-import { useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -36,16 +35,9 @@ export function FileList() {
     }
   }, [])
 
-  useEffect(() => {
-    if (selectedVendor) {
-      loadFiles()
-    }
-  }, [selectedVendor])
-
-  const loadFiles = async () => {
+  const loadFiles = useCallback(async () => {
     setLoading(true)
     try {
-      // 从 localStorage 获取厂商配置
       const vendorsJson = localStorage.getItem('vendors')
       
       const response = await fetch(`/api/s3?vendorId=${selectedVendor}`, {
@@ -63,7 +55,13 @@ export function FileList() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedVendor]) // 添加 selectedVendor 作为依赖
+
+  useEffect(() => {
+    if (selectedVendor) {
+      loadFiles()
+    }
+  }, [selectedVendor, loadFiles]) // 添加 loadFiles 作为依赖
 
   // const handleDelete = async (key: string) => {
   //   try {
