@@ -98,14 +98,14 @@ export async function DELETE(request: Request) {
         secretAccessKey: vendor.secretKey
       },
       region: vendor.region,
-      forcePathStyle: true
+      // forcePathStyle: true
     })
 
     // 删除对象
     // 在创建 DeleteObjectCommand 时考虑 key 前缀
     const command = new DeleteObjectCommand({
       Bucket: vendor.bucket,
-      Key: vendor.key ? `${vendor.key}${key}` : key
+      Key: key
     })
 
     await client.send(command)
