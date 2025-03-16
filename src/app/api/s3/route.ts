@@ -1,4 +1,4 @@
-import { Vendor } from "@/types/s3"
+import { FileItem, Vendor } from "@/types/s3"
 import { S3Client, ListObjectsCommand } from "@aws-sdk/client-s3"
 import { NextResponse } from "next/server"
 import { DeleteObjectCommand } from "@aws-sdk/client-s3"
@@ -41,21 +41,44 @@ export async function GET(request: Request) {
     // 在创建 ListObjectsCommand 时加入 key 前缀
     const command = new ListObjectsCommand({
       Bucket: vendor.bucket,
-      Prefix: vendor.key ? `${vendor.key}${prefix}` : prefix
+      Prefix: vendor.key ? `${vendor.key}${prefix}` : prefix,
+      Delimiter: '/'  // 使用分隔符来区分目录
     })
 
     const response = await client.send(command)
     
-    // 转换响应数据
-    const files = (response.Contents || []).map(item => ({
-      key: item.Key || "",
-      size: item.Size || 0,
-      lastModified: item.LastModified || new Date(),
-      type: item.Key ? getFileType(item.Key) : "application/octet-stream"
-    }))
+    // 转换响应数据，包括目录和文件
+    const files: FileItem[] = []
+
+    // 处理目录
+    if (response.CommonPrefixes) {
+      files.push(...response.CommonPrefixes.map(prefix => ({
+        key: prefix.Prefix || "",
+        size: 0,
+        lastModified: new Date().toISOString(),
+        type: "directory",
+        isDirectory: true,
+        name: prefix.Prefix?.split('/').slice(-2)[0] || ""
+      })))
+    }
+
+    // 处理文件
+    if (response.Contents) {
+      files.push(...response.Contents
+        .filter(item => item.Key !== prefix) // 过滤掉当前目录
+        .map(item => ({
+          key: item.Key || "",
+          size: item.Size || 0,
+          lastModified: item.LastModified?.toISOString() || new Date().toISOString(),
+          type: getFileType(item.Key || ""),
+          isDirectory: false,
+          name: item.Key?.split('/').pop() || ""
+        })))
+    }
 
     return NextResponse.json({ 
-      data: files, 
+      data: files,
+      currentPath: prefix,
       message: "获取文件列表成功" 
     })
   } catch (error) {

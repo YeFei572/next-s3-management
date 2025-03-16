@@ -23,6 +23,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '未找到文件' }, { status: 400 })
     }
 
+    const prefix = searchParams.get('prefix') || ''
+    const key = prefix ? `${prefix}${file.name}` : file.name
+
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const command = new PutObjectCommand({
+      Bucket: vendor.bucket,
+      Key: vendor.key ? `${vendor.key}${key}` : key,
+      Body: buffer,
+      ContentType: file.type || 'application/octet-stream'
+    })
+
     const client = new S3Client({
       region: vendor.region,
       endpoint: vendor.endpoint,
@@ -31,16 +42,6 @@ export async function POST(request: NextRequest) {
         secretAccessKey: vendor.secretKey,
       },
       forcePathStyle: true
-    })
-
-    const buffer = Buffer.from(await file.arrayBuffer())
-    const key = vendor.key ? `${vendor.key}${file.name}` : file.name
-
-    const command = new PutObjectCommand({
-      Bucket: vendor.bucket,
-      Key: key,
-      Body: buffer,
-      ContentType: file.type || 'application/octet-stream'
     })
 
     await client.send(command)

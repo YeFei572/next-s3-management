@@ -24,17 +24,17 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import type { FileItem, Vendor } from "@/types/s3"
-import { Download, Trash2, Upload } from "lucide-react"
+import { Download, Trash2, Upload, RotateCcw } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import { useDropzone } from 'react-dropzone'
 import { toast } from "sonner"
 import axios from '@/lib/axios'
-
 export function FileList() {
   const [files, setFiles] = useState<FileItem[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedVendor, setSelectedVendor] = useState<string>("")
   const [vendors, setVendors] = useState<Vendor[]>([])
+  const [currentPath, setCurrentPath] = useState("")
   const [showUploadDrawer, setShowUploadDrawer] = useState(false)
   const [uploading, setUploading] = useState(false)
 
@@ -49,17 +49,30 @@ export function FileList() {
   const loadFiles = useCallback(async () => {
     setLoading(true)
     try {
-      const { data: { data, message } } = await axios.get(`/s3`, {
-        params: { vendorId: selectedVendor }
+      const { data } = await axios.get(`/s3`, {
+        params: { 
+          vendorId: selectedVendor,
+          prefix: currentPath
+        }
       })
-      setFiles(data)
-      toast.success(message)
+      setFiles(data.data)
+      setCurrentPath(data.currentPath)
+      toast.success(data.message)
     } catch {
       // 错误已经被 axios 拦截器处理
     } finally {
       setLoading(false)
     }
-  }, [selectedVendor])
+  }, [selectedVendor, currentPath])
+
+  const handleFolderClick = (key: string) => {
+    setCurrentPath(key)
+  }
+
+  const handleBackClick = () => {
+    const newPath = currentPath.split('/').slice(0, -2).join('/') + '/'
+    setCurrentPath(newPath.length > 0 ? newPath : '')
+  }
 
   useEffect(() => {
     if (selectedVendor) {
@@ -122,7 +135,10 @@ export function FileList() {
         formData.append('file', file)
         
         const { data: { message } } = await axios.post(`/s3/upload`, formData, {
-          params: { vendorId: selectedVendor },
+          params: { 
+            vendorId: selectedVendor,
+            prefix: currentPath
+          },
           headers: {
             'Content-Type': 'multipart/form-data'
           }
@@ -138,7 +154,7 @@ export function FileList() {
     } finally {
       setUploading(false)
     }
-  }, [selectedVendor, loadFiles])
+  }, [selectedVendor, currentPath, loadFiles])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop })
 
@@ -146,20 +162,45 @@ export function FileList() {
     <>
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <div className="w-[200px]">
-            <Select value={selectedVendor} onValueChange={setSelectedVendor}>
-              <SelectTrigger disabled={loading}>
-                <SelectValue placeholder="选择厂商" />
-              </SelectTrigger>
-              <SelectContent>
-                {vendors.map(vendor => (
-                  <SelectItem key={vendor.id} value={vendor.id}>
-                    {vendor.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="flex items-center gap-4 flex-1">
+            <div className="w-[200px]">
+              <Select value={selectedVendor} onValueChange={setSelectedVendor}>
+                <SelectTrigger disabled={loading}>
+                  <SelectValue placeholder="选择厂商" />
+                </SelectTrigger>
+                <SelectContent>
+                  {vendors.map(vendor => (
+                    <SelectItem key={vendor.id} value={vendor.id}>
+                      {vendor.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedVendor && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  disabled={!currentPath}
+                  onClick={handleBackClick}
+                >
+                  返回上级
+                </Button>
+                <span>当前路径: {currentPath || '/'}</span>
+              </div>
+            )}
           </div>
+          <Button
+            variant="outline"
+            className="mr-3"
+            size="icon"
+            onClick={loadFiles}
+            disabled={!selectedVendor}
+          >
+            <RotateCcw className="h-4 w-4" />
+          </Button>
+            
           <Button 
             variant="outline" 
             size="icon"
@@ -173,7 +214,7 @@ export function FileList() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>文件名</TableHead>
+              <TableHead>名称</TableHead>
               <TableHead>类型</TableHead>
               <TableHead>大小</TableHead>
               <TableHead>修改时间</TableHead>
@@ -199,27 +240,43 @@ export function FileList() {
             ) : (
               files.map((file) => (
                 <TableRow key={file.key}>
-                  <TableCell>{file.key}</TableCell>
-                  <TableCell>{file.type}</TableCell>
-                  <TableCell>{formatFileSize(file.size)}</TableCell>
                   <TableCell>
-                    {file.lastModified 
-                      ? new Date(file.lastModified).toLocaleString()
-                      : '暂无修改时间'}
+                    {file.isDirectory ? (
+                      <Button 
+                        variant="link" 
+                        className="p-0 h-auto font-normal"
+                        onClick={() => handleFolderClick(file.key)}
+                      >
+                        📁 {file.name}
+                      </Button>
+                    ) : (
+                      <span>📄 {file.name}</span>
+                    )}
                   </TableCell>
+                  <TableCell>{file.type}</TableCell>
+                  <TableCell>{file.isDirectory ? '-' : formatFileSize(file.size)}</TableCell>
+                  <TableCell>{new Date(file.lastModified).toLocaleString()}</TableCell>
                   <TableCell className="space-x-2">
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
-                      disabled={loading}
-                      onClick={() => handleDownload(file.key)}
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="icon" disabled={loading}
-                    onClick={() => handleDelete(file.key)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {!file.isDirectory && (
+                      <>
+                        <Button 
+                          variant="outline" 
+                          size="icon" 
+                          disabled={loading}
+                          onClick={() => handleDownload(file.key)}
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="icon" 
+                          disabled={loading}
+                          onClick={() => handleDelete(file.key)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
                   </TableCell>
                 </TableRow>
               ))
