@@ -6,6 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,  // 添加这个导入
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -54,7 +55,6 @@ export default function S3ConfigDialog({
     try {
       const vendorsJson = localStorage.getItem('vendors')
       const vendors = vendorsJson ? JSON.parse(vendorsJson) : []
-      
       const updatedVendor = {
         ...vendor,
         ...config,
@@ -90,6 +90,9 @@ export default function S3ConfigDialog({
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{vendor.name} - S3配置</DialogTitle>
+          <DialogDescription>
+            配置 S3 存储服务的连接信息
+          </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">

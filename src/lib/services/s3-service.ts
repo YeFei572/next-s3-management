@@ -28,8 +28,11 @@ export class S3Service {
       return (response.Contents || []).map(item => ({
         key: item.Key || "",
         size: item.Size || 0,
-        lastModified: item.LastModified || new Date(),
-        type: this.getFileType(item.Key || "")
+        lastModified: (item.LastModified || new Date()).toDateString(),
+        type: this.getFileType(item.Key || ""),
+        // 如果item.key不含/，则表示是文件，否则是文件夹
+        isDirectory: item.Key?.includes('/') || false,
+        name: item.Key?.split('/').pop() || "",
       }))
     } catch (error) {
       console.error("Error listing objects:", error)
