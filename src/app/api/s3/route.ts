@@ -3,60 +3,6 @@ import { S3Client, ListObjectsCommand } from "@aws-sdk/client-s3"
 import { NextResponse } from "next/server"
 import { DeleteObjectCommand } from "@aws-sdk/client-s3"
 
-export async function DELETE(request: Request) {
-  const searchParams = new URL(request.url).searchParams
-  const vendorId = searchParams.get("vendorId")
-  const key = searchParams.get("key")
-
-  if (!vendorId || !key) {
-    return NextResponse.json({ error: "缺少必要的参数" }, { status: 400 })
-  }
-
-  try {
-    // 从请求头获取厂商配置
-    const vendorsJson = request.headers.get('x-vendors')
-    if (!vendorsJson) {
-      return NextResponse.json({ error: "未找到厂商配置" }, { status: 404 })
-    }
-
-    const vendors = JSON.parse(vendorsJson)
-    const vendor = vendors.find((v: Vendor) => v.id === vendorId)
-    
-    if (!vendor) {
-      return NextResponse.json({ error: "未找到指定厂商" }, { status: 404 })
-    }
-
-    // 创建 S3 客户端
-    const client = new S3Client({
-      endpoint: vendor.endpoint,
-      credentials: {
-        accessKeyId: vendor.accessKey,
-        secretAccessKey: vendor.secretKey
-      },
-      region: vendor.region,
-      forcePathStyle: true
-    })
-
-    // 删除对象
-    const command = new DeleteObjectCommand({
-      Bucket: vendor.bucket,
-      Key: key
-    })
-
-    await client.send(command)
-    
-    return NextResponse.json({ 
-      message: "文件删除成功" 
-    })
-  } catch (error) {
-    console.error("Error in S3 DELETE API:", error)
-    return NextResponse.json(
-      { error: "删除文件失败" },
-      { status: 500 }
-    )
-  }
-}
-
 export async function GET(request: Request) {
   const searchParams = new URL(request.url).searchParams
   const vendorId = searchParams.get("vendorId")
@@ -92,9 +38,10 @@ export async function GET(request: Request) {
     })
 
     // 列出对象
+    // 在创建 ListObjectsCommand 时加入 key 前缀
     const command = new ListObjectsCommand({
       Bucket: vendor.bucket,
-      Prefix: prefix
+      Prefix: vendor.key ? `${vendor.key}${prefix}` : prefix
     })
 
     const response = await client.send(command)
@@ -115,6 +62,61 @@ export async function GET(request: Request) {
     console.error("Error in S3 API:", error)
     return NextResponse.json(
       { error: error || "获取文件列表失败" },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(request: Request) {
+  const searchParams = new URL(request.url).searchParams
+  const vendorId = searchParams.get("vendorId")
+  const key = searchParams.get("key")
+
+  if (!vendorId || !key) {
+    return NextResponse.json({ error: "缺少必要的参数" }, { status: 400 })
+  }
+
+  try {
+    // 从请求头获取厂商配置
+    const vendorsJson = request.headers.get('x-vendors')
+    if (!vendorsJson) {
+      return NextResponse.json({ error: "未找到厂商配置" }, { status: 404 })
+    }
+
+    const vendors = JSON.parse(vendorsJson)
+    const vendor = vendors.find((v: Vendor) => v.id === vendorId)
+    
+    if (!vendor) {
+      return NextResponse.json({ error: "未找到指定厂商" }, { status: 404 })
+    }
+
+    // 创建 S3 客户端
+    const client = new S3Client({
+      endpoint: vendor.endpoint,
+      credentials: {
+        accessKeyId: vendor.accessKey,
+        secretAccessKey: vendor.secretKey
+      },
+      region: vendor.region,
+      forcePathStyle: true
+    })
+
+    // 删除对象
+    // 在创建 DeleteObjectCommand 时考虑 key 前缀
+    const command = new DeleteObjectCommand({
+      Bucket: vendor.bucket,
+      Key: vendor.key ? `${vendor.key}${key}` : key
+    })
+
+    await client.send(command)
+    
+    return NextResponse.json({ 
+      message: "文件删除成功" 
+    })
+  } catch (error) {
+    console.error("Error in S3 DELETE API:", error)
+    return NextResponse.json(
+      { error: "删除文件失败" },
       { status: 500 }
     )
   }

@@ -4,7 +4,8 @@ import { getVendorById } from "@/lib/vendor"
 
 export async function POST(request: NextRequest) {
   try {
-    const vendorId = request.nextUrl.searchParams.get('vendorId')
+    const searchParams = new URL(request.url).searchParams
+    const vendorId = searchParams.get('vendorId')
     const vendorsHeader = request.headers.get('x-vendors')
 
     if (!vendorId || !vendorsHeader) {
@@ -29,21 +30,24 @@ export async function POST(request: NextRequest) {
         accessKeyId: vendor.accessKey,
         secretAccessKey: vendor.secretKey,
       },
+      forcePathStyle: true
     })
 
     const buffer = Buffer.from(await file.arrayBuffer())
+    const key = vendor.key ? `${vendor.key}${file.name}` : file.name
+
     const command = new PutObjectCommand({
       Bucket: vendor.bucket,
-      Key: file.name,
+      Key: key,
       Body: buffer,
-      ContentType: file.type,
+      ContentType: file.type || 'application/octet-stream'
     })
 
     await client.send(command)
 
     return NextResponse.json({ 
       message: '上传成功',
-      data: { filename: file.name }
+      data: { filename: key }
     })
 
   } catch (error) {

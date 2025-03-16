@@ -33,6 +33,7 @@ export default function S3ConfigDialog({
     secretKey: "",
     region: "",
     bucket: "",
+    key: "", // 添加 key 字段
   })
 
   // 添加 useEffect 来处理配置回显
@@ -44,6 +45,7 @@ export default function S3ConfigDialog({
         secretKey: vendor.secretKey || "",
         region: vendor.region || "",
         bucket: vendor.bucket || "",
+        key: vendor.key || "",
       })
     }
   }, [vendor, open])
@@ -152,6 +154,20 @@ export default function S3ConfigDialog({
               value={config.bucket}
               onChange={(e) =>
                 setConfig((prev) => ({ ...prev, bucket: e.target.value }))
+              }
+              className="col-span-3"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="key" className="text-right">
+              目录前缀
+            </Label>
+            <Input
+              id="key"
+              value={config.key}
+              placeholder="可选，例如：files/"
+              onChange={(e) =>
+                setConfig((prev) => ({ ...prev, key: e.target.value }))
               }
               className="col-span-3"
             />

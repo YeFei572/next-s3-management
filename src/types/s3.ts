@@ -7,6 +7,7 @@ export interface Vendor {
   region: string
   bucket: string
   description?: string
+  key?: string
   createdAt: Date
   updatedAt: Date
 }
